@@ -59,6 +59,7 @@ import {
 } from "./hooks.js";
 import { sendGatewayAuthFailure, setDefaultSecurityHeaders } from "./http-common.js";
 import {
+  type AuthorizedGatewayHttpRequest,
   authorizeGatewayHttpRequestOrReply,
   getBearerToken,
   resolveHttpBrowserOriginPolicy,
@@ -309,6 +310,7 @@ function buildPluginRequestStages(params: {
     return [];
   }
   let pluginGatewayAuthSatisfied = false;
+  let pluginGatewayRequestAuth: AuthorizedGatewayHttpRequest | undefined;
   let pluginRequestOperatorScopes: string[] | undefined;
   return [
     {
@@ -339,6 +341,7 @@ function buildPluginRequestStages(params: {
           return true;
         }
         pluginGatewayAuthSatisfied = true;
+        pluginGatewayRequestAuth = requestAuth;
         pluginRequestOperatorScopes = resolvePluginRouteRuntimeOperatorScopes(
           params.req,
           requestAuth,
@@ -354,6 +357,7 @@ function buildPluginRequestStages(params: {
         return (
           params.handlePluginRequest?.(params.req, params.res, pathContext, {
             gatewayAuthSatisfied: pluginGatewayAuthSatisfied,
+            gatewayRequestAuth: pluginGatewayRequestAuth,
             gatewayRequestOperatorScopes: pluginRequestOperatorScopes,
           }) ?? false
         );

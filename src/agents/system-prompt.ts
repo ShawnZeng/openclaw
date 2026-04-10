@@ -103,7 +103,7 @@ function buildAssistantOutputDirectivesSection(isMinimal: boolean) {
     "- Prefer [[reply_to_current]]. Use [[reply_to:<id>]] only when an id was explicitly provided (e.g. by the user or a tool).",
     "Whitespace inside the tag is allowed (e.g. [[ reply_to_current ]] / [[ reply_to: 123 ]]).",
     "- Channel-specific interactive directives are separate and should not be mixed into this web render guidance.",
-    "Supported tags are stripped before user-visible rendering; support still depends on the current channel config.",
+    "Tags are removed before sending; support depends on the current channel config.",
     "",
   ];
 }

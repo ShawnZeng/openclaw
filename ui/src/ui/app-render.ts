@@ -139,6 +139,16 @@ const lazyNodes = createLazy(() => import("./views/nodes.ts"));
 const lazySessions = createLazy(() => import("./views/sessions.ts"));
 const lazySkills = createLazy(() => import("./views/skills.ts"));
 
+function formatDreamNextCycle(nextRunAtMs: number | undefined): string | null {
+  if (typeof nextRunAtMs !== "number" || !Number.isFinite(nextRunAtMs)) {
+    return null;
+  }
+  return new Date(nextRunAtMs).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function lazyRender<M>(getter: () => M | null, render: (mod: M) => unknown) {
   const mod = getter();
   return mod ? render(mod) : nothing;
@@ -1633,23 +1643,7 @@ export function renderApp(state: AppViewState) {
           ? renderChat({
               sessionKey: state.sessionKey,
               onSessionKeyChange: (next) => {
-                state.sessionKey = next;
-                state.chatMessage = "";
-                state.chatAttachments = [];
-                state.chatStream = null;
-                state.chatStreamStartedAt = null;
-                state.chatRunId = null;
-                state.chatQueue = [];
-                state.resetToolStream();
-                state.resetChatScroll();
-                state.applySettings({
-                  ...state.settings,
-                  sessionKey: next,
-                  lastActiveSessionKey: next,
-                });
-                void state.loadAssistantIdentity();
-                void loadChatHistory(state);
-                void refreshChatAvatar(state);
+                switchChatSession(state, next);
               },
               thinkingLevel: state.chatThinkingLevel,
               showThinking,
@@ -1660,6 +1654,7 @@ export function renderApp(state: AppViewState) {
               fallbackStatus: state.fallbackStatus,
               assistantAvatarUrl: chatAvatarUrl,
               messages: state.chatMessages,
+              sideResult: state.chatSideResult,
               toolMessages: state.chatToolMessages,
               streamSegments: state.chatStreamSegments,
               stream: state.chatStream,
@@ -1676,6 +1671,7 @@ export function renderApp(state: AppViewState) {
                 ? false
                 : state.settings.chatAutoExpandToolCalls,
               onRefresh: () => {
+                state.chatSideResult = null;
                 state.resetToolStream();
                 return Promise.all([loadChatHistory(state), refreshChatAvatar(state)]);
               },
@@ -1698,6 +1694,9 @@ export function renderApp(state: AppViewState) {
               canAbort: Boolean(state.chatRunId),
               onAbort: () => void state.handleAbortChat(),
               onQueueRemove: (id) => state.removeQueuedMessage(id),
+              onDismissSideResult: () => {
+                state.chatSideResult = null;
+              },
               onNewSession: () => state.handleSendChat("/new", { restoreDraft: true }),
               onClearHistory: async () => {
                 if (!state.client || !state.connected) {
@@ -1706,6 +1705,7 @@ export function renderApp(state: AppViewState) {
                 try {
                   await state.client.request("sessions.reset", { key: state.sessionKey });
                   state.chatMessages = [];
+                  state.chatSideResult = null;
                   state.chatStream = null;
                   state.chatRunId = null;
                   await loadChatHistory(state);
@@ -1716,17 +1716,7 @@ export function renderApp(state: AppViewState) {
               agentsList: state.agentsList,
               currentAgentId: resolvedAgentId ?? "main",
               onAgentChange: (agentId: string) => {
-                state.sessionKey = buildAgentMainSessionKey({ agentId });
-                state.chatMessages = [];
-                state.chatStream = null;
-                state.chatRunId = null;
-                state.applySettings({
-                  ...state.settings,
-                  sessionKey: state.sessionKey,
-                  lastActiveSessionKey: state.sessionKey,
-                });
-                void loadChatHistory(state);
-                void state.loadAssistantIdentity();
+                switchChatSession(state, buildAgentMainSessionKey({ agentId }));
               },
               onNavigateToAgent: () => {
                 state.agentsSelectedId = resolvedAgentId;
@@ -1796,6 +1786,35 @@ export function renderApp(state: AppViewState) {
                 onScroll: (event) => state.handleLogsScroll(event),
               }),
             )
+          : nothing}
+        ${state.tab === "dreams"
+          ? renderDreaming({
+              active: dreamingOn,
+              shortTermCount: state.dreamingStatus?.shortTermCount ?? 0,
+              groundedSignalCount: state.dreamingStatus?.groundedSignalCount ?? 0,
+              totalSignalCount: state.dreamingStatus?.totalSignalCount ?? 0,
+              promotedCount: state.dreamingStatus?.promotedToday ?? 0,
+              phases: state.dreamingStatus?.phases ?? undefined,
+              shortTermEntries: state.dreamingStatus?.shortTermEntries ?? [],
+              promotedEntries: state.dreamingStatus?.promotedEntries ?? [],
+              dreamingOf: null,
+              nextCycle: dreamingNextCycle,
+              timezone: state.dreamingStatus?.timezone ?? null,
+              statusLoading: state.dreamingStatusLoading,
+              statusError: state.dreamingStatusError,
+              modeSaving: state.dreamingModeSaving,
+              dreamDiaryLoading: state.dreamDiaryLoading,
+              dreamDiaryActionLoading: state.dreamDiaryActionLoading,
+              dreamDiaryError: state.dreamDiaryError,
+              dreamDiaryPath: state.dreamDiaryPath,
+              dreamDiaryContent: state.dreamDiaryContent,
+              onRefresh: refreshDreaming,
+              onRefreshDiary: () => loadDreamDiary(state),
+              onBackfillDiary: () => backfillDreamDiary(state),
+              onResetDiary: () => resetDreamDiary(state),
+              onResetGroundedShortTerm: () => resetGroundedShortTerm(state),
+              onRequestUpdate: requestHostUpdate,
+            })
           : nothing}
       </main>
       ${renderExecApprovalPrompt(state)} ${renderGatewayUrlConfirmation(state)} ${nothing}
