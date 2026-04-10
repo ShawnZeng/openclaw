@@ -10,6 +10,7 @@ Docs: https://docs.openclaw.ai
 
 ### Fixes
 
+- Matrix/ACP thread bindings: preserve canonical room casing and parent conversation routing during ACP session spawn so mixed-case room ids bind correctly from top-level rooms and existing Matrix threads.
 - fix(qqbot): enforce media storage boundary for all outbound local file paths [AI]. (#63271) Thanks @pgondhi987.
 - iMessage/self-chat: distinguish normal DM outbound rows from true self-chat using `destination_caller_id` plus chat participants, while preserving multi-handle self-chat aliases so outbound DM replies stop looping back as inbound messages. (#61619) Thanks @neeravmakwana.
 - fix(browser): auto-generate browser control auth token for none/trusted-proxy modes [AI]. (#63280) Thanks @pgondhi987.
