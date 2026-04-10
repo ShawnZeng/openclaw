@@ -6,6 +6,7 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
+import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
 import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import type { ModelProviderConfig } from "openclaw/plugin-sdk/provider-model-shared";
 import { resolvePreferredOpenClawTmpDir } from "openclaw/plugin-sdk/temp-path";
@@ -531,6 +532,7 @@ export async function startQaGatewayChild(params: {
   fastMode?: boolean;
   thinkingDefault?: QaThinkingLevel;
   controlUiEnabled?: boolean;
+  mutateConfig?: (cfg: OpenClawConfig) => OpenClawConfig;
 }) {
   const tempRoot = await fs.mkdtemp(
     path.join(resolvePreferredOpenClawTmpDir(), "openclaw-qa-suite-"),
@@ -576,7 +578,7 @@ export async function startQaGatewayChild(params: {
           providerConfigs: liveProviderConfigs,
         })
       : undefined;
-  const cfg = buildQaGatewayConfig({
+  const baseCfg = buildQaGatewayConfig({
     bind: "loopback",
     gatewayPort,
     gatewayToken,
@@ -597,6 +599,7 @@ export async function startQaGatewayChild(params: {
     thinkingDefault: params.thinkingDefault,
     controlUiEnabled: params.controlUiEnabled,
   });
+  const cfg = params.mutateConfig ? params.mutateConfig(baseCfg) : baseCfg;
   await fs.writeFile(configPath, `${JSON.stringify(cfg, null, 2)}\n`, "utf8");
   const allowedPluginIds = [...(cfg.plugins?.allow ?? []), "openai"].filter(
     (pluginId, index, array): pluginId is string => {
